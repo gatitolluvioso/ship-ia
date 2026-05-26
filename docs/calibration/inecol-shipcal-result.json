@@ -1,0 +1,292 @@
+{
+  "metadata": {
+    "caseId": "inecol-moscafrut-2024-08-06",
+    "source": "SHIPcal-CIMAV v1.1 reference report",
+    "reportDate": "2024-08-06",
+    "purpose": "Calibration fixture for SHIP IA resultJson generation",
+    "notes": [
+      "Values are intended for preliminary calibration, not exact deterministic simulation.",
+      "The DOCX mentions 23031.5 kWh/year supplied production, while the PDF reports 24260.4 kWh/year. Prefer the PDF value as direct SHIPcal output."
+    ]
+  },
+  "input": {
+    "proyecto": {
+      "nombre": "Inecol v4",
+      "descripcion": "Calentamiento de agua para produccion de dieta en gel para cria masiva de moscas"
+    },
+    "ubicacion": {
+      "pais": "Mexico",
+      "estado": "Chiapas",
+      "ciudad": "Metapa de Dominguez",
+      "archivoMeteorologico": "Tapachula.dat"
+    },
+    "industria": {
+      "nombre": "Produccion de dieta en gel",
+      "sector": "Agroindustrial / investigacion biologica"
+    },
+    "energiaConvencional": {
+      "combustible": "Diesel",
+      "precio": 24.46,
+      "unidadPrecio": "MXN/L",
+      "eficienciaCaldera": 0.8
+    },
+    "proceso": {
+      "fluido": "Agua",
+      "presion": 1,
+      "unidadPresion": "atm",
+      "temperaturaEntradaC": 30.8,
+      "temperaturaSalidaC": 85,
+      "deltaTC": 54.2,
+      "tipoCircuito": "Circuito cerrado",
+      "areaDisponibleM2": 500
+    },
+    "demanda": {
+      "valor": 1582,
+      "unidad": "L/dia",
+      "horaInicio": "15:00",
+      "horaFinal": "18:00",
+      "mesesOperacion": [
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre"
+      ],
+      "diasOperacion": [
+        "lunes",
+        "martes",
+        "miercoles",
+        "jueves",
+        "viernes",
+        "sabado",
+        "domingo"
+      ]
+    }
+  },
+  "supuestos": {
+    "recursoSolar": {
+      "radiacionDisponibleKwhM2Anio": 1922.6,
+      "fuente": "Meteonorm / archivo meteorologico Tapachula.dat",
+      "clasificacion": "alto"
+    },
+    "almacenamiento": {
+      "requerido": true,
+      "criterio": "Demanda concentrada por la tarde; se almacena energia captada durante horas solares."
+    },
+    "financieros": {
+      "moneda": "MXN",
+      "horizonteAnios": 10,
+      "costosActualizables": true
+    }
+  },
+  "ubicacion": {
+    "pais": "Mexico",
+    "ciudad": "Metapa de Dominguez",
+    "estado": "Chiapas",
+    "regionSolar": "Sureste de Mexico",
+    "evaluacionRecurso": "El recurso solar anual reportado es favorable para calor solar de proceso."
+  },
+  "proceso": {
+    "descripcion": "Preparacion de dieta en gel con requerimiento de agua caliente para activar agar.",
+    "compatibilidadSHIP": "alta",
+    "justificacionCompatibilidad": "La demanda es agua caliente en fase liquida a 85 C, con temperatura objetivo compatible con colectores solares termicos comerciales.",
+    "faseFluido": "liquida",
+    "evaporacion": false
+  },
+  "arregloSolar": {
+    "colector": {
+      "modelo": "MODULOSOLAR MAXOL MS25",
+      "aliasReporteTecnico": "Maxsol MS 2.5",
+      "pesoKgPorColector": 46
+    },
+    "colectoresEnSerie": 5,
+    "numeroFilas": 3,
+    "totalColectores": 15,
+    "areaOcupacionM2": 34.9,
+    "areaCaptacionSolarM2": 34.9,
+    "flujoMasicoKgS": {
+      "pdf": 0.087,
+      "docx": 0.23,
+      "nota": "The PDF and DOCX report different mass flow values. Keep both until the calculation basis is confirmed."
+    }
+  },
+  "integracion": {
+    "esquema": "SL_L_PS",
+    "descripcionCorta": "Campo solar conectado en paralelo con la caldera y almacenamiento termico.",
+    "descripcion": "Los colectores elevan el fluido hasta la temperatura de salida de la caldera, por lo que el campo solar puede conectarse directamente al proceso. La energia excedente se almacena para usarse mas tarde.",
+    "requiereRecirculacion": true,
+    "riesgoOperacion": "Puede haber perdida de energia si no se alcanza la temperatura de salida deseada antes de terminar las horas con radiacion solar."
+  },
+  "almacenamiento": {
+    "volumenLitros": 1582,
+    "capacidadKwh": 98,
+    "energiaCargaAnualKwh": 22984.3,
+    "energiaDescargaAnualKwh": 22984.3,
+    "energiaDesenfoqueAnualKwh": 1173.7
+  },
+  "produccion": {
+    "radiacionDisponibleKwhM2Anio": 1922.6,
+    "produccionBrutaKwhAnio": 25434.1,
+    "produccionSuministradaKwhAnio": 24260.4,
+    "produccionPorModuloKwhAnio": 1695.6,
+    "energiaDemandadaKwhAnio": 35783.3,
+    "energiaConsumidaCalderaReferenciaKwhAnio": 35783.3,
+    "energiaAuxiliarKwhAnio": 11522.9,
+    "fraccionSolar": 0.678,
+    "fraccionSolarPorcentaje": 67.8,
+    "utilizacionEnergiaPorcentaje": 95.4,
+    "produccionBrutaVsDemandaPorcentaje": 71.1,
+    "produccionSuministradaVsDemandaPorcentaje": 67.8
+  },
+  "financiero": {
+    "moneda": "MXN",
+    "resumen": {
+      "facturaActualAnio1": 76942.6,
+      "ahorroMedioPorcentaje": 62.3,
+      "ahorroSolarAnio1": 46118.4,
+      "ahorroSolarMedio": 224084.9,
+      "inversionTotal": 302353.6,
+      "retornoAnio": 6,
+      "tirPorcentaje": 26.9,
+      "tir10AniosPorcentaje": 17.4
+    },
+    "desgloseInversion": {
+      "colectores": 166200.4,
+      "integracionAccesorios": 69773.9,
+      "almacenamiento": 54195.6,
+      "bomba": 4271.6,
+      "flete": null,
+      "operacionMantenimientoAnual": 6047.1
+    },
+    "proyeccion10Anios": [
+      {
+        "anio": 1,
+        "costoCombustible": 2.2,
+        "facturaTradicional": 76942.6,
+        "facturaConSolar": 76942.6,
+        "ahorroSolar": 0,
+        "flujoLibreEfectivo": -302353.6,
+        "flujoAcumulado": -302353.6
+      },
+      {
+        "anio": 2,
+        "costoCombustible": 2.2,
+        "facturaTradicional": 76942.6,
+        "facturaConSolar": 30824.2,
+        "ahorroSolar": 46118.4,
+        "flujoLibreEfectivo": 46118.4,
+        "flujoAcumulado": -256235.1
+      },
+      {
+        "anio": 3,
+        "costoCombustible": 2.4,
+        "facturaTradicional": 85806.4,
+        "facturaConSolar": 33678.5,
+        "ahorroSolar": 52127.9,
+        "flujoLibreEfectivo": 52127.9,
+        "flujoAcumulado": -204107.2
+      },
+      {
+        "anio": 4,
+        "costoCombustible": 2.7,
+        "facturaTradicional": 95691.3,
+        "facturaConSolar": 36861.6,
+        "ahorroSolar": 58829.6,
+        "flujoLibreEfectivo": 58829.6,
+        "flujoAcumulado": -145277.6
+      },
+      {
+        "anio": 5,
+        "costoCombustible": 3,
+        "facturaTradicional": 106714.9,
+        "facturaConSolar": 40411.5,
+        "ahorroSolar": 66303.4,
+        "flujoLibreEfectivo": 66303.4,
+        "flujoAcumulado": -78974.1
+      },
+      {
+        "anio": 6,
+        "costoCombustible": 3.3,
+        "facturaTradicional": 119008.5,
+        "facturaConSolar": 44370.2,
+        "ahorroSolar": 74638.2,
+        "flujoLibreEfectivo": 74638.2,
+        "flujoAcumulado": -4335.9
+      },
+      {
+        "anio": 7,
+        "costoCombustible": 3.7,
+        "facturaTradicional": 132718.2,
+        "facturaConSolar": 48785.1,
+        "ahorroSolar": 83933.2,
+        "flujoLibreEfectivo": 83933.2,
+        "flujoAcumulado": 79597.2
+      },
+      {
+        "anio": 8,
+        "costoCombustible": 4.1,
+        "facturaTradicional": 148007.4,
+        "facturaConSolar": 53708.5,
+        "ahorroSolar": 94298.9,
+        "flujoLibreEfectivo": 94298.9,
+        "flujoAcumulado": 173896.1
+      },
+      {
+        "anio": 9,
+        "costoCombustible": 4.6,
+        "facturaTradicional": 165057.8,
+        "facturaConSolar": 59199.1,
+        "ahorroSolar": 105858.7,
+        "flujoLibreEfectivo": 105858.7,
+        "flujoAcumulado": 279754.9
+      },
+      {
+        "anio": 10,
+        "costoCombustible": 5.1,
+        "facturaTradicional": 184072.5,
+        "facturaConSolar": 65322.2,
+        "ahorroSolar": 118750.3,
+        "flujoLibreEfectivo": 118750.3,
+        "flujoAcumulado": 398505.2
+      }
+    ]
+  },
+  "analisis": {
+    "resumenEjecutivo": "El caso presenta una oportunidad favorable para integrar calor solar de proceso, con una fraccion solar cercana al 68% y retorno simple alrededor del anio 6.",
+    "viabilidadTecnica": "Alta, debido a que la demanda es agua caliente en fase liquida a una temperatura alcanzable por colectores solares termicos y con disponibilidad de area suficiente.",
+    "viabilidadEconomica": "Favorable bajo los supuestos del reporte, con TIR de 26.9% y flujo acumulado positivo a partir del anio 7.",
+    "recomendaciones": [
+      "Validar el perfil horario real de demanda y la temperatura de entrada de agua.",
+      "Confirmar disponibilidad fisica y sombreado del area de instalacion.",
+      "Actualizar costos de colectores, almacenamiento, integracion y mantenimiento.",
+      "Revisar el valor de flujo masico porque PDF y DOCX muestran valores distintos."
+    ],
+    "limitaciones": [
+      "Los costos son aproximados y podrian no estar actualizados.",
+      "El resultado depende del archivo meteorologico y de la operacion continua durante todo el anio.",
+      "La herramienta es de prefactibilidad y no sustituye ingenieria de detalle."
+    ]
+  },
+  "calidad": {
+    "nivelConfianza": "alto para calibracion contra el reporte; medio para generalizacion a nuevos casos",
+    "datosFaltantes": [
+      "Curva horaria real de demanda",
+      "Datos de sombras y orientacion",
+      "Cotizacion actualizada de equipos",
+      "Criterio exacto para flujo masico"
+    ],
+    "validacionesFisicas": {
+      "faseLiquida": true,
+      "temperaturaObjetivoCompatible": true,
+      "areaDisponibleSuficiente": true,
+      "requiereRevisionIngenieriaDetalle": true
+    }
+  }
+}
