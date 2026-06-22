@@ -1,3 +1,171 @@
+import OpenAI from "openai";
+import { NextRequest, NextResponse } from "next/server";
+import { getCurrentUser } from "@/lib/auth";
+import { normalizeShipResult } from "@/lib/ship-result-normalizer";
+
+const configurationSchema = {
+  type: "object",
+  additionalProperties: true,
+  required: [
+    "id",
+    "nombre",
+    "areaInstaladaM2",
+    "numeroColectores",
+    "almacenamientoLitros",
+    "produccionSolarUtilKwhAnio",
+    "produccionEspecificaUtilKwhM2Anio",
+    "fraccionSolar",
+    "fraccionSolarPorcentaje",
+    "inversionTotal",
+    "ahorroAnual",
+    "periodoRetornoSimpleAnios",
+    "tirPorcentaje",
+    "van",
+    "criterio",
+  ],
+  properties: {
+    id: { type: "number" },
+    nombre: { type: "string" },
+    areaInstaladaM2: { type: "number" },
+    numeroColectores: { type: "number" },
+    almacenamientoLitros: { type: "number" },
+    produccionSolarUtilKwhAnio: { type: "number" },
+    produccionEspecificaUtilKwhM2Anio: { type: "number" },
+    fraccionSolar: { type: "number" },
+    fraccionSolarPorcentaje: { type: "number" },
+    inversionTotal: { type: "number" },
+    ahorroAnual: { type: "number" },
+    periodoRetornoSimpleAnios: { type: "number" },
+    tirPorcentaje: { type: "number" },
+    van: { type: "number" },
+    criterio: { type: "string" },
+  },
+};
+
+const resultSchema = {
+  type: "object",
+  additionalProperties: false,
+  required: [
+    "ubicacion",
+    "proceso",
+    "solar",
+    "produccion",
+    "financiero",
+    "analisis",
+    "graficas",
+  ],
+  properties: {
+    ubicacion: { type: "object", additionalProperties: true },
+    proceso: { type: "object", additionalProperties: true },
+    solar: { type: "object", additionalProperties: true },
+    produccion: {
+      type: "object",
+      additionalProperties: true,
+      required: [
+        "energiaDemandadaKwhAnio",
+        "demandaEnergeticaKwhDia",
+        "configuraciones",
+        "configuracionSeleccionada",
+      ],
+      properties: {
+        energiaDemandadaKwhAnio: { type: "number" },
+        demandaEnergeticaKwhDia: { type: "number" },
+        produccionSolarUtilKwhAnio: { type: "number" },
+        produccionEspecificaUtilKwhM2Anio: { type: "number" },
+        fraccionSolar: { type: "number" },
+        fraccionSolarPorcentaje: { type: "number" },
+        areaInstaladaM2: { type: "number" },
+        numeroColectores: { type: "number" },
+        almacenamientoLitros: { type: "number" },
+        configuraciones: {
+          type: "array",
+          minItems: 5,
+          items: configurationSchema,
+        },
+        configuracionSeleccionada: configurationSchema,
+      },
+    },
+    financiero: {
+      type: "object",
+      additionalProperties: true,
+      properties: {
+        moneda: { type: "string" },
+        facturaActualAnual: { type: "number" },
+        ahorroSolarAnual: { type: "number" },
+        inversionTotal: { type: "number" },
+        opexAnualEstimado: { type: "number" },
+        periodoRetornoSimpleAnios: { type: "number" },
+        tirPorcentaje: { type: "number" },
+        van: { type: "number" },
+      },
+    },
+    analisis: { type: "object", additionalProperties: true },
+    graficas: {
+      type: "object",
+      additionalProperties: true,
+      required: [
+        "produccionMensual",
+        "flujoCaja",
+        "comparacionConfiguraciones",
+      ],
+      properties: {
+        produccionMensual: {
+          type: "array",
+          minItems: 12,
+          items: {
+            type: "object",
+            additionalProperties: true,
+            required: ["mes", "demandaKwh", "solarUtilKwh", "energiaAuxiliarKwh"],
+            properties: {
+              mes: { type: "string" },
+              demandaKwh: { type: "number" },
+              solarUtilKwh: { type: "number" },
+              energiaAuxiliarKwh: { type: "number" },
+            },
+          },
+        },
+        flujoCaja: {
+          type: "array",
+          minItems: 5,
+          items: {
+            type: "object",
+            additionalProperties: true,
+            required: ["anio", "flujoNeto", "flujoAcumulado"],
+            properties: {
+              anio: { type: "number" },
+              flujoNeto: { type: "number" },
+              flujoAcumulado: { type: "number" },
+            },
+          },
+        },
+        comparacionConfiguraciones: {
+          type: "array",
+          minItems: 5,
+          items: {
+            type: "object",
+            additionalProperties: true,
+            required: [
+              "nombre",
+              "areaInstaladaM2",
+              "produccionSolarUtilKwhAnio",
+              "inversionTotal",
+              "periodoRetornoSimpleAnios",
+            ],
+            properties: {
+              nombre: { type: "string" },
+              areaInstaladaM2: { type: "number" },
+              produccionSolarUtilKwhAnio: { type: "number" },
+              inversionTotal: { type: "number" },
+              periodoRetornoSimpleAnios: { type: "number" },
+            },
+          },
+        },
+      },
+    },
+  },
+};
+
+const systemPrompt = `
 Actúa como una herramienta profesional de prefactibilidad SHIP (Solar Heat for Industrial Processes) similar a SHIPcal del CIMAV.
 
 Genera una simulación preliminar de un sistema solar térmico industrial utilizando únicamente los datos proporcionados por el usuario.
@@ -413,5 +581,85 @@ IMPORTANTE:
         "periodoRetornoSimpleAnios": 0
       }
     ]
+  }
+}
+`;
+
+function safeParseJson(text: string) {
+  const cleaned = text
+    .trim()
+    .replace(/^```json\s*/i, "")
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/i, "");
+
+  return JSON.parse(cleaned);
+}
+
+export async function POST(req: NextRequest) {
+  try {
+    const user = getCurrentUser(req);
+
+    if (!user) {
+      return NextResponse.json(
+        { error: "Debes iniciar sesion para generar simulaciones" },
+        { status: 401 },
+      );
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return NextResponse.json(
+        { error: "OPENAI_API_KEY no esta configurada" },
+        { status: 500 },
+      );
+    }
+
+    const inputJson = await req.json();
+    const client = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
+    const response = await client.responses.create({
+      model: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+      instructions: systemPrompt,
+      input: [
+        {
+          role: "user",
+          content: [
+            {
+              type: "input_text",
+              text: `Genera un resultJson SHIP completo a partir de este formulario:\n\n${JSON.stringify(
+                inputJson,
+                null,
+                2,
+              )}`,
+            },
+          ],
+        },
+      ],
+      text: {
+        format: {
+          type: "json_schema",
+          name: "ship_prefeasibility_result",
+          schema: resultSchema,
+          strict: false,
+        },
+      },
+    });
+
+    const outputText = response.output_text;
+    const rawResultJson = safeParseJson(outputText);
+    const resultJson = normalizeShipResult(rawResultJson, inputJson);
+
+    return NextResponse.json({
+      success: true,
+      resultJson,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return NextResponse.json(
+      { error: "No se pudo generar la simulacion IA" },
+      { status: 500 },
+    );
   }
 }

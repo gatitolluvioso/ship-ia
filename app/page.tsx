@@ -1,6 +1,8 @@
 "use client";
 
-import { ChangeEvent, useMemo, useState } from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 
 const months = [
   "Enero",
@@ -32,20 +34,28 @@ type IconName =
   | "chart"
   | "chevron-left"
   | "chevron-right"
+  | "database"
   | "file-plus"
   | "history"
   | "map-pin"
+  | "refresh"
   | "report"
   | "settings"
   | "settings-2"
   | "summary";
 
-const navItems: { label: string; icon: IconName; active: boolean }[] = [
-  { label: "Nuevo proyecto", icon: "file-plus", active: true },
-  { label: "Historial", icon: "history", active: false },
-  { label: "Reportes", icon: "report", active: false },
-  { label: "Simulaciones", icon: "chart", active: false },
-  { label: "Configuracion", icon: "settings", active: false },
+type ViewKey = "new" | "history" | "reports" | "settings";
+
+const navItems: { href: string; key: ViewKey; label: string; icon: IconName }[] = [
+  { href: "/", key: "new", label: "Nuevo proyecto", icon: "file-plus" },
+  { href: "/history", key: "history", label: "Historial", icon: "history" },
+  { href: "/reports", key: "reports", label: "Reportes", icon: "report" },
+  {
+    href: "/settings",
+    key: "settings",
+    label: "Configuracion",
+    icon: "settings",
+  },
 ];
 
 type FormData = {
@@ -72,36 +82,75 @@ type FormData = {
   diasOperacion: string[];
 };
 
+type SubmitStatus = "idle" | "loading" | "success" | "error";
+
+type AuthUser = {
+  id: number;
+  name: string | null;
+  email: string;
+  role: string;
+  avatarUrl: string | null;
+  avatarInitial: string | null;
+  avatarColor: string | null;
+};
+
 const initialFormData: FormData = {
-  industria: "",
-  pais: "",
-  ciudad: "",
-  combustible: "",
-  precioCombustible: "",
-  unidadPrecio: "$/kWh",
-  areaDisponible: "",
-  modeloColector: "",
+  industria: "Produccion de dieta en gel para cria masiva de moscas",
+  pais: "Mexico",
+  ciudad: "Metapa de Dominguez, Chiapas",
+  combustible: "Diesel",
+  precioCombustible: "2.2",
+  unidadPrecio: "MXN/kWh",
+  areaDisponible: "500",
+  modeloColector: "Maxsol MS 2.5",
   fluido: "Agua",
-  presion: "",
+  presion: "1",
   unidadPresion: "bar",
   tipoCircuito: "Circuito cerrado",
-  temperaturaEntrada: "",
-  temperaturaSalida: "",
-  demanda: "",
+  temperaturaEntrada: "30.8",
+  temperaturaSalida: "85",
+  demanda: "1582",
   unidadDemanda: "L/día",
-  horarioInicio: "",
-  horarioFin: "",
+  horarioInicio: "15:00",
+  horarioFin: "18:00",
   operacionAnual: "todo",
   mesesOperacion: months,
   diasOperacion: weekDays.map((day) => day.value),
 };
 
 export default function Home() {
+  const pathname = usePathname();
   const [formData, setFormData] = useState<FormData>(initialFormData);
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [submitStatus, setSubmitStatus] = useState<SubmitStatus>("idle");
+  const [submitMessage, setSubmitMessage] = useState("");
+  const [pdfPath, setPdfPath] = useState("");
+  const [user, setUser] = useState<AuthUser | null>(null);
   const [collapsedSections, setCollapsedSections] = useState<
     Record<string, boolean>
   >({});
+
+  useEffect(() => {
+    let active = true;
+
+    fetch("/api/auth/me")
+      .then((response) => {
+        if (!response.ok) return null;
+        return response.json() as Promise<{ user: AuthUser | null }>;
+      })
+      .then((data) => {
+        if (!active || !data) return;
+        setUser(data.user);
+      })
+      .catch(() => {
+        if (!active) return;
+        setUser(null);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, []);
 
   const filledFields = useMemo(() => {
     return Object.values(formData).filter((value) => {
@@ -212,26 +261,102 @@ export default function Home() {
   };
 
   const handleSubmit = async () => {
-    const payload = {
-      nombre: `${formData.industria || "Proyecto SHIP"} - ${
-        formData.ciudad || "Sin ciudad"
-      }`,
-      industria: formData.industria,
-      pais: formData.pais,
-      ciudad: formData.ciudad,
-      inputJson: formData,
-    };
+    setSubmitStatus("loading");
+    setSubmitMessage("Generando simulacion con IA...");
+    setPdfPath("");
 
-    const res = await fetch("/api/projects", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
-    });
+    try {
+      const sessionResponse = await fetch("/api/auth/me");
 
-    const data = await res.json();
-    alert(`Proyecto guardado con ID: ${data.id}`);
+      if (!sessionResponse.ok) {
+        throw new Error("AUTH_REQUIRED");
+      }
+
+      const simulationResponse = await fetch("/api/simulate", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+      });
+
+      if (!simulationResponse.ok) {
+        throw new Error("No se pudo generar la simulacion IA");
+      }
+
+      const simulationData = await simulationResponse.json();
+
+      setSubmitMessage("Guardando proyecto y resultados...");
+
+      const payload = {
+        nombre: `${formData.industria || "Proyecto SHIP"} - ${
+          formData.ciudad || "Sin ciudad"
+        }`,
+        industria: formData.industria,
+        pais: formData.pais,
+        ciudad: formData.ciudad,
+        inputJson: formData,
+        resultJson: simulationData.resultJson,
+        pdfPath: null,
+      };
+
+      const projectResponse = await fetch("/api/projects", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!projectResponse.ok) {
+        throw new Error("No se pudo guardar el proyecto");
+      }
+
+      const projectData = await projectResponse.json();
+
+      setSubmitMessage("Generando reporte PDF...");
+
+      const reportResponse = await fetch(
+        `/api/projects/${projectData.id}/report`,
+        {
+          method: "POST",
+        },
+      );
+
+      if (!reportResponse.ok) {
+        throw new Error("No se pudo generar el PDF");
+      }
+
+      const reportData = await reportResponse.json();
+
+      setPdfPath(reportData.pdfPath || "");
+      setSubmitStatus("success");
+      setSubmitMessage(
+        `El proceso se realizo correctamente. Proyecto guardado con ID ${projectData.id} y PDF generado.`,
+      );
+    } catch (error) {
+      console.error(error);
+      setSubmitStatus("error");
+      setSubmitMessage(
+        error instanceof Error && error.message === "AUTH_REQUIRED"
+          ? "Debes iniciar sesion para generar y guardar proyectos."
+          : "No se pudo completar el proceso. Revisa los datos e intenta de nuevo.",
+      );
+    }
+  };
+
+  const clearForm = () => {
+    const confirmed = window.confirm(
+      "Esta accion limpiara todos los campos del formulario. No se puede deshacer. Deseas continuar?",
+    );
+
+    if (!confirmed) return;
+
+    setFormData(initialFormData);
+    setCollapsedSections({});
+    setSubmitStatus("idle");
+    setSubmitMessage("");
+    setPdfPath("");
   };
 
   return (
@@ -239,31 +364,59 @@ export default function Home() {
       <header className="sticky top-0 z-20 border-b border-blue-950/10 bg-[#092c5f] text-white shadow-sm">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-5">
           <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2">
+            <Link
+              className="flex items-center gap-2 rounded-lg transition hover:opacity-85 focus:outline-none focus:ring-4 focus:ring-white/20"
+              href="/"
+            >
               <h1 className="text-2xl font-bold tracking-tight">SHIP</h1>
               <span className="rounded-full bg-emerald-500 px-2 py-0.5 text-xs font-bold">
                 IA
               </span>
-            </div>
+            </Link>
             <span className="hidden h-6 w-px bg-white/30 sm:block" />
-            <div className="hidden leading-tight sm:block">
+            <a
+              className="hidden rounded-lg leading-tight transition hover:opacity-85 focus:outline-none focus:ring-4 focus:ring-white/20 sm:block"
+              href="https://cimav.edu.mx/"
+              rel="noreferrer"
+              target="_blank"
+            >
               <p className="text-sm font-bold tracking-wide">CIMAV</p>
               <p className="text-[11px] text-blue-100">
                 Centro de Investigacion en Materiales Avanzados
               </p>
-            </div>
+            </a>
           </div>
           <div className="flex items-center gap-5">
-            <button
-              aria-label="Ayuda"
-              className="grid size-8 place-items-center rounded-full border border-white/70 text-lg font-bold"
-              type="button"
+            <Link
+              aria-label="Iniciar sesion con otra cuenta"
+              className="grid size-8 cursor-pointer place-items-center rounded-full border border-white/70 text-lg font-bold transition hover:border-white hover:bg-white/15 focus:outline-none focus:ring-4 focus:ring-white/20"
+              href="/login"
             >
-              ?
-            </button>
-            <div className="grid size-9 place-items-center rounded-full bg-white/95 font-bold text-[#7890ad]">
-              A
-            </div>
+              +
+            </Link>
+            <Link
+              aria-label="Configuracion de usuario"
+              className="grid size-9 cursor-pointer place-items-center overflow-hidden rounded-full bg-white/95 font-bold text-[#7890ad] transition hover:bg-white hover:ring-4 hover:ring-white/20 focus:outline-none focus:ring-4 focus:ring-white/30"
+              href="/settings"
+            >
+              {user?.avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  alt=""
+                  className="size-full object-cover"
+                  src={user.avatarUrl}
+                />
+              ) : user ? (
+                <span
+                  className="grid size-full place-items-center rounded-full text-white"
+                  style={{ backgroundColor: user.avatarColor || "#0b63e5" }}
+                >
+                  {getInitial(user)}
+                </span>
+              ) : (
+                "U"
+              )}
+            </Link>
           </div>
         </div>
       </header>
@@ -289,28 +442,33 @@ export default function Home() {
           </button>
         </div>
         <nav className="mt-2 space-y-2">
-          {navItems.map(({ active, icon, label }) => (
-            <button
-              className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition ${
-                active
-                  ? "bg-[#0b63e5] text-white shadow-md shadow-blue-100"
-                  : "text-slate-600 hover:bg-slate-50 hover:text-[#0a2147]"
-              }`}
-              key={label as string}
-              type="button"
-            >
-              <span
-                className={`grid size-8 place-items-center rounded-lg text-xs font-bold ${
+          {navItems.map(({ href, icon, key, label }) => {
+            const active = pathname === href;
+
+            return (
+              <Link
+                aria-current={active ? "page" : undefined}
+                className={`flex w-full items-center gap-3 rounded-xl px-3 py-3 text-left text-sm font-semibold transition ${
                   active
-                    ? "bg-white/20 text-white"
-                    : "bg-slate-100 text-slate-500"
+                    ? "bg-[#0b63e5] text-white shadow-md shadow-blue-100"
+                    : "text-slate-600 hover:bg-slate-50 hover:text-[#0a2147]"
                 }`}
+                href={href}
+                key={key}
               >
-                <Icon name={icon} />
-              </span>
-              {sidebarOpen ? <span>{label}</span> : null}
-            </button>
-          ))}
+                <span
+                  className={`grid size-8 place-items-center rounded-lg text-xs font-bold ${
+                    active
+                      ? "bg-white/20 text-white"
+                      : "bg-slate-100 text-slate-500"
+                  }`}
+                >
+                  <Icon name={icon} />
+                </span>
+                {sidebarOpen ? <span>{label}</span> : null}
+              </Link>
+            );
+          })}
         </nav>
 
         {sidebarOpen ? (
@@ -327,36 +485,62 @@ export default function Home() {
         className={`transition-all ${sidebarOpen ? "lg:pl-72" : "lg:pl-20"}`}
       >
         <div className="mx-auto max-w-7xl px-4 pb-24 pt-5 sm:px-6">
-          <nav className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
-            <div className="grid gap-4 md:grid-cols-3">
-              {sectionStatus.map((step, index) => (
-                <div
-                  className={`flex items-center gap-3 ${
-                    step.complete ? "text-[#0b63e5]" : "text-slate-500"
-                  }`}
-                  key={step.label}
-                >
-                  <span
-                    className={`grid size-8 place-items-center rounded-full text-sm font-bold ${
-                      step.complete
-                        ? "bg-[#0b63e5] text-white shadow-md shadow-blue-200"
-                        : "bg-slate-100 text-slate-500"
-                    }`}
+          {submitStatus === "success" || submitStatus === "error" ? (
+            <div
+              className={`mb-5 rounded-2xl border px-5 py-4 text-sm font-semibold shadow-sm ${
+                submitStatus === "success"
+                  ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+                  : "border-red-200 bg-red-50 text-red-800"
+              }`}
+            >
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <span>{submitMessage}</span>
+                {submitStatus === "success" && pdfPath ? (
+                  <a
+                    className="inline-flex items-center justify-center rounded-lg bg-white px-4 py-2 text-sm font-bold text-emerald-800 shadow-sm ring-1 ring-emerald-200 transition hover:bg-emerald-100"
+                    href={pdfPath}
+                    rel="noreferrer"
+                    target="_blank"
                   >
-                    {index + 1}
-                  </span>
-                  <span className="text-sm font-semibold">{step.label}</span>
-                  {index < 2 ? (
-                    <span
-                      className={`hidden h-px flex-1 md:block ${
-                        step.complete ? "bg-[#0b63e5]/30" : "bg-slate-200"
-                      }`}
-                    />
-                  ) : null}
-                </div>
-              ))}
+                    Ver PDF
+                  </a>
+                ) : null}
+              </div>
             </div>
-          </nav>
+          ) : null}
+
+          <nav className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
+                <div className="grid gap-4 md:grid-cols-3">
+                  {sectionStatus.map((step, index) => (
+                    <div
+                      className={`flex items-center gap-3 ${
+                        step.complete ? "text-[#0b63e5]" : "text-slate-500"
+                      }`}
+                      key={step.label}
+                    >
+                      <span
+                        className={`grid size-8 place-items-center rounded-full text-sm font-bold ${
+                          step.complete
+                            ? "bg-[#0b63e5] text-white shadow-md shadow-blue-200"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {index + 1}
+                      </span>
+                      <span className="text-sm font-semibold">
+                        {step.label}
+                      </span>
+                      {index < 2 ? (
+                        <span
+                          className={`hidden h-px flex-1 md:block ${
+                            step.complete ? "bg-[#0b63e5]/30" : "bg-slate-200"
+                          }`}
+                        />
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </nav>
 
           <section className="mt-8">
             <h2 className="text-3xl font-bold tracking-tight">
@@ -723,6 +907,26 @@ export default function Home() {
         </div>
       </div>
 
+      {submitStatus === "loading" ? (
+        <div className="fixed inset-0 z-40 grid place-items-center bg-slate-950/40 px-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-7 text-center shadow-2xl">
+            <div className="mx-auto grid size-16 place-items-center rounded-full bg-blue-50">
+              <div className="size-9 animate-spin rounded-full border-4 border-blue-100 border-t-[#0b63e5]" />
+            </div>
+            <h3 className="mt-5 text-xl font-bold text-[#0a2147]">
+              Generando simulacion
+            </h3>
+            <p className="mt-2 text-sm leading-6 text-slate-500">
+              {submitMessage ||
+                "Analizando datos, supuestos y resultados preliminares."}
+            </p>
+            <div className="mt-5 h-2 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full w-2/3 animate-pulse rounded-full bg-[#0b63e5]" />
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       <footer
         className={`fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white/95 px-4 py-3 shadow-[0_-8px_30px_rgba(15,23,42,0.08)] backdrop-blur transition-all ${
           sidebarOpen ? "lg:pl-72" : "lg:pl-20"
@@ -730,17 +934,19 @@ export default function Home() {
       >
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3">
           <button
-            className="rounded-lg border border-slate-200 px-8 py-3 text-sm font-semibold text-slate-600"
+            className="cursor-pointer rounded-lg border border-slate-200 px-8 py-3 text-sm font-semibold text-slate-600 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700 focus:outline-none focus:ring-4 focus:ring-red-100"
+            onClick={clearForm}
             type="button"
           >
-            Cancelar
+            Limpiar formulario
           </button>
           <button
-            className="rounded-lg bg-[#0b63e5] px-8 py-3 text-sm font-bold text-white shadow-md shadow-blue-200"
+            className="cursor-pointer rounded-lg bg-[#0b63e5] px-8 py-3 text-sm font-bold text-white shadow-md shadow-blue-200 transition hover:bg-[#084db5] hover:shadow-lg hover:shadow-blue-200 focus:outline-none focus:ring-4 focus:ring-blue-100 disabled:cursor-not-allowed disabled:bg-slate-400 disabled:shadow-none disabled:hover:bg-slate-400"
+            disabled={submitStatus === "loading"}
             onClick={handleSubmit}
             type="button"
           >
-            Enviar simulacion
+            {submitStatus === "loading" ? "Generando..." : "Enviar simulacion"}
           </button>
         </div>
       </footer>
@@ -978,6 +1184,13 @@ function SummaryBlock({
   );
 }
 
+function getInitial(user: AuthUser) {
+  return (user.avatarInitial || user.name || user.email || "U")
+    .trim()
+    .charAt(0)
+    .toUpperCase();
+}
+
 function Icon({ name }: { name: IconName }) {
   const paths: Record<IconName, React.ReactNode> = {
     activity: (
@@ -996,6 +1209,13 @@ function Icon({ name }: { name: IconName }) {
     ),
     "chevron-left": <path d="m15 6-6 6 6 6" />,
     "chevron-right": <path d="m9 6 6 6-6 6" />,
+    database: (
+      <>
+        <ellipse cx="12" cy="5" rx="7" ry="3" />
+        <path d="M5 5v6c0 1.7 3.1 3 7 3s7-1.3 7-3V5" />
+        <path d="M5 11v6c0 1.7 3.1 3 7 3s7-1.3 7-3v-6" />
+      </>
+    ),
     "file-plus": (
       <>
         <path d="M14 3v4a1 1 0 0 0 1 1h4" />
@@ -1023,6 +1243,12 @@ function Icon({ name }: { name: IconName }) {
         <path d="M15 3v4h4" />
         <path d="M9 13h6" />
         <path d="M9 17h4" />
+      </>
+    ),
+    refresh: (
+      <>
+        <path d="M20 11a8.1 8.1 0 0 0-15.5-2M4 5v4h4" />
+        <path d="M4 13a8.1 8.1 0 0 0 15.5 2M20 19v-4h-4" />
       </>
     ),
     settings: (
