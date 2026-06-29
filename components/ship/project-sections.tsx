@@ -656,14 +656,6 @@ export function SettingsPanel() {
           </div>
         </form>
       ) : null}
-
-      <article className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">
-        <h3 className="font-bold">Siguiente paso</h3>
-        <p className="mt-2 leading-6">
-          Mas adelante podemos guardar empresa, logo, pais por defecto, unidades
-          preferidas y firma para que los PDF salgan personalizados por usuario.
-        </p>
-      </article>
     </section>
   );
 }

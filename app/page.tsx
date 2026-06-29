@@ -46,7 +46,12 @@ type IconName =
 
 type ViewKey = "new" | "history" | "reports" | "settings";
 
-const navItems: { href: string; key: ViewKey; label: string; icon: IconName }[] = [
+const navItems: {
+  href: string;
+  key: ViewKey;
+  label: string;
+  icon: IconName;
+}[] = [
   { href: "/", key: "new", label: "Nuevo proyecto", icon: "file-plus" },
   { href: "/history", key: "history", label: "Historial", icon: "history" },
   { href: "/reports", key: "reports", label: "Reportes", icon: "report" },
@@ -510,37 +515,35 @@ export default function Home() {
           ) : null}
 
           <nav className="rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-sm">
-                <div className="grid gap-4 md:grid-cols-3">
-                  {sectionStatus.map((step, index) => (
-                    <div
-                      className={`flex items-center gap-3 ${
-                        step.complete ? "text-[#0b63e5]" : "text-slate-500"
+            <div className="grid gap-4 md:grid-cols-3">
+              {sectionStatus.map((step, index) => (
+                <div
+                  className={`flex items-center gap-3 ${
+                    step.complete ? "text-[#0b63e5]" : "text-slate-500"
+                  }`}
+                  key={step.label}
+                >
+                  <span
+                    className={`grid size-8 place-items-center rounded-full text-sm font-bold ${
+                      step.complete
+                        ? "bg-[#0b63e5] text-white shadow-md shadow-blue-200"
+                        : "bg-slate-100 text-slate-500"
+                    }`}
+                  >
+                    {index + 1}
+                  </span>
+                  <span className="text-sm font-semibold">{step.label}</span>
+                  {index < 2 ? (
+                    <span
+                      className={`hidden h-px flex-1 md:block ${
+                        step.complete ? "bg-[#0b63e5]/30" : "bg-slate-200"
                       }`}
-                      key={step.label}
-                    >
-                      <span
-                        className={`grid size-8 place-items-center rounded-full text-sm font-bold ${
-                          step.complete
-                            ? "bg-[#0b63e5] text-white shadow-md shadow-blue-200"
-                            : "bg-slate-100 text-slate-500"
-                        }`}
-                      >
-                        {index + 1}
-                      </span>
-                      <span className="text-sm font-semibold">
-                        {step.label}
-                      </span>
-                      {index < 2 ? (
-                        <span
-                          className={`hidden h-px flex-1 md:block ${
-                            step.complete ? "bg-[#0b63e5]/30" : "bg-slate-200"
-                          }`}
-                        />
-                      ) : null}
-                    </div>
-                  ))}
+                    />
+                  ) : null}
                 </div>
-              </nav>
+              ))}
+            </div>
+          </nav>
 
           <section className="mt-8">
             <h2 className="text-3xl font-bold tracking-tight">
