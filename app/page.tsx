@@ -100,24 +100,24 @@ type AuthUser = {
 };
 
 const initialFormData: FormData = {
-  industria: "Produccion de dieta en gel para cria masiva de moscas",
-  pais: "Mexico",
-  ciudad: "Metapa de Dominguez, Chiapas",
-  combustible: "Diesel",
-  precioCombustible: "2.2",
+  industria: "",
+  pais: "",
+  ciudad: "",
+  combustible: "",
+  precioCombustible: "",
   unidadPrecio: "MXN/kWh",
-  areaDisponible: "500",
-  modeloColector: "Maxsol MS 2.5",
+  areaDisponible: "",
+  modeloColector: "",
   fluido: "Agua",
-  presion: "1",
+  presion: "",
   unidadPresion: "bar",
   tipoCircuito: "Circuito cerrado",
-  temperaturaEntrada: "30.8",
-  temperaturaSalida: "85",
-  demanda: "1582",
+  temperaturaEntrada: "",
+  temperaturaSalida: "",
+  demanda: "",
   unidadDemanda: "L/día",
-  horarioInicio: "15:00",
-  horarioFin: "18:00",
+  horarioInicio: "",
+  horarioFin: "",
   operacionAnual: "todo",
   mesesOperacion: months,
   diasOperacion: weekDays.map((day) => day.value),
@@ -583,7 +583,7 @@ export default function Home() {
                     label="Ciudad"
                     name="ciudad"
                     onChange={handleChange}
-                    placeholder="Ej. Metapa de Dominguez"
+                    placeholder="Ej. Ciudad o region"
                     value={formData.ciudad}
                   />
                 </div>
@@ -708,7 +708,7 @@ export default function Home() {
                     label="Demanda"
                     name="demanda"
                     onChange={handleChange}
-                    placeholder="Ej. 1582"
+                    placeholder="Ej. 1000"
                     value={formData.demanda}
                   />
                   <SelectField

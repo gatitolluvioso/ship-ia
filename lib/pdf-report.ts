@@ -40,9 +40,32 @@ export async function createShipReportPdf(project: ProjectReportData) {
         margin: {
           top: "18mm",
           right: "16mm",
-          bottom: "18mm",
+          bottom: "22mm",
           left: "16mm",
         },
+        displayHeaderFooter: true,
+        headerTemplate: `<div></div>`,
+        footerTemplate: `
+          <div style="
+            width: 100%;
+            padding: 0 16mm;
+            font-family: Arial, Helvetica, sans-serif;
+            font-size: 8px;
+            color: #64748b;
+            box-sizing: border-box;
+          ">
+            <div style="
+              border-top: 1px solid #cbd5e1;
+              padding-top: 4px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            ">
+              <span>Este reporte fue generado con inteligencia artificial y requiere validacion tecnica antes de su publicacion o uso formal.</span>
+              <span>Pagina <span class="pageNumber"></span> de <span class="totalPages"></span></span>
+            </div>
+          </div>
+        `,
       }),
     );
   } finally {
@@ -335,27 +358,9 @@ function createReportHtml(project: ProjectReportData) {
       .page-break {
         break-before: page;
       }
-
-      footer {
-        position: fixed;
-        right: 16mm;
-        bottom: 8mm;
-        left: 16mm;
-        display: flex;
-        justify-content: space-between;
-        border-top: 1px solid #cbd5e1;
-        padding-top: 5px;
-        color: #64748b;
-        font-size: 9px;
-      }
     </style>
   </head>
   <body>
-    <footer>
-      <span>SHIP IA - Reporte tecnico preliminar</span>
-      <span>CIMAV</span>
-    </footer>
-
     <div class="cover">
       <div class="brand">
         <div class="ship">SHIP<span class="badge">IA</span></div>
